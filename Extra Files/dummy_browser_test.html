@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Socket.IO Bid Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+
+<body>
+    <h2>Real-time Bid Tester</h2>
+
+    <input id="roomInput" placeholder="Enter Room ID" />
+    <button onclick="joinRoom()">Join Room</button>
+
+    <ul id="log"></ul>
+
+    <script>
+        const socket = io();
+
+        function joinRoom() {
+            const roomId = document.getElementById('roomInput').value;
+            socket.emit('join-room', roomId);
+            log(`✅ Joined room: ${roomId}`);
+        }
+
+        socket.on('bid-updated', (data) => {
+            console.log("📢 New Bid:", data);
+            log(`📢 New bid: ${data.highestBid} on car ${data.carId}`);
+        });
+
+        socket.on('auctionWon', (data) => {
+            console.log("🎉 Auction Won:", data);
+            log(`🎉 Auction won for car ${data.carId} by ${data.winnerId}`);
+        });
+
+        function log(msg) {
+            const li = document.createElement('li');
+            li.innerText = msg;
+            document.getElementById('log').appendChild(li);
+        }
+    </script>
+</body>
+
+</html>

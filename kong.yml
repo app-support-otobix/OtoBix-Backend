@@ -1,0 +1,13 @@
+# _format_version: "3.0"
+# _transform: true
+
+# services:
+#   - name: otobix-api
+#     url: http://127.0.0.1:4000
+#     read_timeout: 60000
+#     connect_timeout: 6000
+#     write_timeout: 60000
+#     routes:
+#       - name: passthrough
+#         paths: ["/"]
+#         strip_path: false
