@@ -10,7 +10,7 @@ const http = require('http');
 const path = require('path');
 
 const connectDB = require('./Config/mongo_db');
-const { initAgenda } = require('./Agenda/agenda'); 
+const { initAgenda } = require('./Agenda/agenda');
 const SocketService = require('./Config/socket_service');
 const { saveAdminCredentialsInMongo } = require('./Utils/save_admin_credentials_in_mongo');
 const { saveSalesManagerCredentialsInMongo } = require('./Utils/save_sales_manager_credentials_in_mongo');
@@ -128,6 +128,7 @@ app.post('/api/send-notification', async (req, res) => {
 
     server.listen(PORT, '0.0.0.0', () => {
       const ip = getLocalIP();
+      console.log(`From new repo:`);
       console.log(`Server listening at:`);
       console.log(`→ http://localhost:${PORT}`);
       console.log(`→ http://${ip}:${PORT}  (use this on another PC)`);
