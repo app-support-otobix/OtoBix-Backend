@@ -51,6 +51,7 @@ app.use('/api/service-history', require('./Routes/service_history_routes'));
 app.use('/api/self-inspection', require('./Routes/self_inspection_routes'));
 app.use('/api/otobix', require('./Routes/otobix_routes'));
 app.use('/api/tp', require('./Routes/third_party_routes'));
+app.use('/api/hdfc', require('./Routes/hdfc_bank_routes'));
 app.use("/api/mongodb", require('./Routes/mongo_db_backup_routes'));  // Backup and Restore rountes for MongoDB
 app.use('/api/dummy', require('./Extra Files/dummy_routes'));
 
@@ -128,7 +129,6 @@ app.post('/api/send-notification', async (req, res) => {
 
     server.listen(PORT, '0.0.0.0', () => {
       const ip = getLocalIP();
-      console.log(`From new repo:`);
       console.log(`Server listening at:`);
       console.log(`→ http://localhost:${PORT}`);
       console.log(`→ http://${ip}:${PORT}  (use this on another PC)`);
