@@ -177,7 +177,9 @@ exports.getCarList = async (req, res) => {
             variant: 1,
             priceDiscovery: 1,
             yearMonthOfManufacture: 1,
+            yearAndMonthOfManufacture: 1,
             odometerReadingInKms: 1,
+            odometerReadingBeforeTestDrive: 1,
             ownerSerialNumber: 1,
             fuelType: 1,
             transmissionTypeDropdownList: 1,
@@ -188,6 +190,7 @@ exports.getCarList = async (req, res) => {
             registeredRto: 1,
             registrationState: 1,
             registrationDate: 1,
+            inspectionCity: 1,
             city: 1,
             approvalStatus: 1,
             cubicCapacity: 1,
@@ -211,6 +214,7 @@ exports.getCarList = async (req, res) => {
             registeredAddressAsPerRc: 1,
             contactNumber: 1,
             emailAddress: 1,
+            ieName: 1,
             chassisNumber: 1,
             engineNumber: 1,
             // Images
@@ -229,8 +233,8 @@ exports.getCarList = async (req, res) => {
 
         // 1) Fetch cars
         const cars = await CarModel.find(filter, projection)
-        // .sort({ updatedAt: -1 })   // latest updated first
-        .lean();
+            // .sort({ updatedAt: -1 })   // latest updated first
+            .lean();
 
         // 2) Collect all soldTo ids (non-null)
         const soldToIds = [
@@ -306,17 +310,22 @@ exports.getCarList = async (req, res) => {
                 variant: car.variant ?? '',
                 priceDiscovery: parseFloat(car.priceDiscovery || 0),
                 yearMonthOfManufacture: car.yearMonthOfManufacture ?? null,
+                yearAndMonthOfManufacture: car.yearAndMonthOfManufacture ?? null,
                 odometerReadingInKms: parseInt(car.odometerReadingInKms || 0),
+                odometerReadingBeforeTestDrive: parseInt(car.odometerReadingBeforeTestDrive || 0),
                 ownerSerialNumber: parseInt(car.ownerSerialNumber || 0),
                 fuelType: car.fuelType ?? '',
-                commentsOnTransmission: car.transmissionTypeDropdownList?.[0] ?? car.commentsOnTransmission ?? '',
+                commentsOnTransmission: car.transmissionTypeDropdownList?.[0] ?? car.commentsOnTransmission ?? '', // Remove this from both frontend and backend in future after release of 2.2.1 update of dealer app
+                transmissionTypeDropdownList: car.transmissionTypeDropdownList ?? [],
                 roadTaxValidity: car.roadTaxValidity ?? '',
                 taxValidTill: car.taxValidTill ?? null,
                 registrationNumber: car.registrationNumber ?? '',
                 registeredRto: car.registeredRto ?? '',
                 registrationState: car.registrationState ?? '',
                 registrationDate: car.registrationDate ?? null,
-                inspectionLocation: car.city ?? '',
+                inspectionLocation: car.city ?? '', // Remove this from both frontend and backend in future after release of 2.2.1 update of dealer app
+                inspectionCity: car.inspectionCity ?? '',
+                city: car.city ?? '',
                 isInspected,
                 cubicCapacity: car.cubicCapacity ?? 0,
                 oneClickPrice: parseFloat(car.oneClickPrice || 0),
@@ -341,6 +350,7 @@ exports.getCarList = async (req, res) => {
                 registeredAddressAsPerRc: car.registeredAddressAsPerRc ?? '',
                 contactNumber: car.contactNumber ?? '',
                 emailAddress: car.emailAddress ?? '',
+                ieName: car.ieName ?? '',
                 chassisNumber: car.chassisNumber ?? '',
                 engineNumber: car.engineNumber ?? '',
                 imageUrls
@@ -483,8 +493,10 @@ exports.updateAuctionTime = async (req, res) => {
         );
 
         // Tell the ui that a new car is added in the live bids section
-        const { addCarToLiveBidsHelper } = require('../Helper Functions/add_car_to_live_bids_helper');
-        const addedCar = addCarToLiveBidsHelper(updatedCar);
+        // const { addCarToLiveBidsHelper } = require('../Helper Functions/add_car_to_live_bids_helper');
+        // const addedCar = addCarToLiveBidsHelper(updatedCar);
+        const CarDetailsForCarsListModel = require('../Shared/car_details_for_cars_list_model');
+        const addedCar = CarDetailsForCarsListModel.setCarDetails(updatedCar);
 
         SocketService.emitToRoom(EVENTS.LIVE_BIDS_SECTION_ROOM, EVENTS.LIVE_BIDS_SECTION_UPDATED, {
             action: 'added',
@@ -783,7 +795,7 @@ exports.rejectACar = async (req, res) => {
                 make: car.make,
                 model: car.model,
                 variant: car.variant,
-   
+
                 odometerReadingInKms: car.odometer,
                 additionalNotes: car.additionalNotes,
                 customerContactNumber: car.contactNumber,
@@ -806,16 +818,16 @@ exports.rejectACar = async (req, res) => {
             telecallingDoc.inspectionEngineerNumber || null;
 
         // Notify inspection engineer
-      try{
-        const inspectionEngineerId = await getUserIdByPhoneNumber(inspectionEngineerNumber);
-        await sendPushToExternalId({
-          externalId: inspectionEngineerId,
-          title: `${car.make} ${car.model} is rejected from QC.`,
-          body: `Reason: ${reason || 'No reason provided'}`,
-          data: {},
-        });
-        }catch(error){
-        console.error('[Push] Error notifying inspection engineer:', error);
+        try {
+            const inspectionEngineerId = await getUserIdByPhoneNumber(inspectionEngineerNumber);
+            await sendPushToExternalId({
+                externalId: inspectionEngineerId,
+                title: `${car.make} ${car.model} is rejected from QC.`,
+                body: `Reason: ${reason || 'No reason provided'}`,
+                data: {},
+            });
+        } catch (error) {
+            console.error('[Push] Error notifying inspection engineer:', error);
         }
 
         return res.status(200).json({
