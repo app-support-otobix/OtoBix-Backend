@@ -42,11 +42,13 @@ const selfInspectedCarsSchema = new mongoose.Schema({
   lhsMainImage: { type: String, required: true },
   engineBayImage: { type: String, required: true },
   dashboardImage: { type: String, required: true },
+  additionalImages: { type: [String], default: [] },
 
   // ==================== Vehicle Condition (Manual Entry) ====================
   odometer: { type: Number, default: 0 },
   accidentalStatus: { type: String, required: true },
-  clutch: { type: String, required: true },
+  transmissionType: { type: String, required: true },
+  clutch: { type: String, default: '' },
   suspension: { type: String, required: true },
   steering: { type: String, required: true },
   brake: { type: String, required: true },
@@ -59,38 +61,38 @@ const selfInspectedCarsSchema = new mongoose.Schema({
 
   // ==================== System Fields ====================
   userId: { type: String, trim: true },
-  auctionStatus: { type: String, default: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.INSPECTION_REQUESTED },
+  auctionStatus: { type: String, default: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.SELF_INSPECTED },
   sellerContactNumber: { type: String, default: '' },
-  priceDiscovery: { type: Number, default: 0 }, 
-  priceDiscoveryBy: { type: String, default: '' }, 
+  priceDiscovery: { type: Number, default: 0 },
+  priceDiscoveryBy: { type: String, default: '' },
   highestOffer: { type: Number, default: 0 },
-  highestOfferBy: { type: String, default: '' }, 
-  auctionStartTime: { type: Date }, 
-  auctionEndTime: { type: Date }, 
+  highestOfferBy: { type: String, default: '' },
+  auctionStartTime: { type: Date },
+  auctionEndTime: { type: Date },
   fixedMargin: { type: convertToDoubleForMongo(), default: doubleDefault(0) }, // in percentages like 2% alaways same 
   variableMargin: { type: convertToDoubleForMongo(), default: doubleDefault(0) }, // in percentages like 8%
   attestrPayload: { type: Object, default: {} },
-  soldTo: { type: String, default: '' }, 
-  soldAt: { type: Number, default: 0 }, 
-  soldBy: { type: String, default: '' }, 
-  qcBy: { type: String, default: '' }, 
+  soldTo: { type: String, default: '' },
+  soldAt: { type: Number, default: 0 },
+  soldBy: { type: String, default: '' },
+  qcBy: { type: String, default: '' },
 },
-{
-  timestamps: true 
-});
+  {
+    timestamps: true
+  });
 
 
 // plugin to auto generate inspectionId
 selfInspectedCarsSchema.plugin(selfInspectedCarInspectionIdGeneratePlugin, {
-    field: "inspectionId",
-    counterPrefix: "selfInspectedCarInspectionId",
+  field: "inspectionId",
+  counterPrefix: "selfInspectedCarInspectionId",
 });
 
 // Set margins automatically when priceDiscovery(non-zero) is added 
 selfInspectedCarsSchema.plugin(applySelfInspectedCarMargins, {
-    priceField: 'priceDiscovery',
-    fixedField: 'fixedMargin',
-    variableField: 'variableMargin',
+  priceField: 'priceDiscovery',
+  fixedField: 'fixedMargin',
+  variableField: 'variableMargin',
 });
 
 selfInspectedCarsSchema.plugin(pluginToUpdateDoubleValue, { paths: ['fixedMargin', 'variableMargin'] });

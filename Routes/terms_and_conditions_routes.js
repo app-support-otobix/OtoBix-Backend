@@ -6,9 +6,9 @@ const authMiddleware = require("../Middlewares/auth_middleware");
 const { uploadMiddleware, uploadTerms, getLatestTerms, getTermsByVersion, listTerms } = require('../Controllers/terms_and_conditions_controller');
 
 // Public routes
+router.get('/latest', getLatestTerms);
 router.get('/:version', getTermsByVersion);
 router.get('/', listTerms);
-router.get('/latest', getLatestTerms);
 
 // Everything below this line is authenticated (protected routes)
 router.use(authMiddleware);

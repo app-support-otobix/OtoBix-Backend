@@ -4,14 +4,14 @@ const router = express.Router();
 const authMiddleware = require("../Middlewares/auth_middleware");
 
 const { submitSelfInspectionRequest, getUserSelfInspectedCarsList, getSelfInspectedCarById, getLiveSelfInspectedCarsList,
-        makeOfferOnSelfInspectedCar, getPriceOfferedSelfInspectedCarsList, setSelfInspectedCarExpectedPrice,
-        acceptSelfInspectedCarOffer } = require('../Controllers/self_inspection_controller');
+    makeOfferOnSelfInspectedCar, getPriceOfferedSelfInspectedCarsList, setSelfInspectedCarExpectedPrice,
+    acceptSelfInspectedCarOffer } = require('../Controllers/self_inspection_controller');
 const { fetchTelecallingsListByDealerAsSeller } = require('../Inspection/telecallings_controller');
 
 // Use in-memory storage so nothing is saved locally
 const multer = require('multer');
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: { fileSize: 20 * 1024 * 1024 } // 20MB per image
 });
@@ -22,7 +22,7 @@ router.use(authMiddleware);
 
 
 // Self Inspection Routes
-router.post('/submit-self-inspection-request', 
+router.post('/submit-self-inspection-request',
     upload.fields([
         { name: 'frontMainImage', maxCount: 1 },
         { name: 'rhsFullImage', maxCount: 1 },
@@ -30,7 +30,8 @@ router.post('/submit-self-inspection-request',
         { name: 'bootFloorImage', maxCount: 1 },
         { name: 'lhsMainImage', maxCount: 1 },
         { name: 'engineBayImage', maxCount: 1 },
-        { name: 'dashboardImage', maxCount: 1 }
+        { name: 'dashboardImage', maxCount: 1 },
+        { name: 'additionalImages', maxCount: 5 }
     ]),
     submitSelfInspectionRequest
 );

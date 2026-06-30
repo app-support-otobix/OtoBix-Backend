@@ -31,6 +31,7 @@ class CarDetailsForCarsListModel {
                 return url ? { title, url } : null;
             })
             .filter(Boolean);
+
         const imageUrl = getFirstImage(car.frontMain) || '';
         const isInspected = String(car.approvalStatus || '').toUpperCase() === 'APPROVED';
         const num = (v) => (v == null ? 0 : Number.isFinite(+v) ? +v : 0);
@@ -45,18 +46,22 @@ class CarDetailsForCarsListModel {
             variant: car.variant ?? '',
             priceDiscovery: num(car.priceDiscovery),
             yearMonthOfManufacture: car.yearMonthOfManufacture ?? null,
+            yearAndMonthOfManufacture: car.yearAndMonthOfManufacture ?? null,
             odometerReadingInKms: int(car.odometerReadingInKms),
+            odometerReadingBeforeTestDrive: int(car.odometerReadingBeforeTestDrive),
             ownerSerialNumber: int(car.ownerSerialNumber),
             fuelType: car.fuelType ?? '',
-            // commentsOnTransmission: car.commentsOnTransmission ?? '',
-            commentsOnTransmission: car.transmissionTypeDropdownList?.[0] ?? car.commentsOnTransmission ?? '',
+            commentsOnTransmission: car.transmissionTypeDropdownList?.[0] ?? car.commentsOnTransmission ?? '', // Remove this from both frontend and backend in future after release of 2.2.1 update of dealer app
+            transmissionTypeDropdownList: car.transmissionTypeDropdownList ?? [],
             roadTaxValidity: car.roadTaxValidity ?? '',
             taxValidTill: car.taxValidTill ?? null,
             registrationNumber: car.registrationNumber ?? '',
             registeredRto: car.registeredRto ?? '',
             registrationState: car.registrationState ?? '',
             registrationDate: car.registrationDate ?? null,
-            inspectionLocation: car.city ?? '',
+            inspectionLocation: car.city ?? '', // Remove this from both frontend and backend in future after release of 2.2.1 update of dealer app
+            inspectionCity: car.inspectionCity ?? '',
+            city: car.city ?? '',
             isInspected,
             cubicCapacity: car.cubicCapacity ?? 0,
             oneClickPrice: parseFloat(car.oneClickPrice || 0.0),
@@ -78,6 +83,7 @@ class CarDetailsForCarsListModel {
             registeredAddressAsPerRc: car.registeredAddressAsPerRc ?? '',
             contactNumber: car.contactNumber ?? '',
             emailAddress: car.emailAddress ?? '',
+            ieName: car.ieName ?? '',
             chassisNumber: car.chassisNumber ?? '',
             engineNumber: car.engineNumber ?? '',
             imageUrls,

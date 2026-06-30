@@ -33,14 +33,14 @@ module.exports = {
 
     // Self Inspection Auction Statuses
     SELF_INSPECTED_CARS_AUCTION_STATUS: {
-        INSPECTION_REQUESTED: 'inspectionRequested',     // Dealer submitted car
+        SELF_INSPECTED: 'selfInspected',     // Seller submitted car
+        INSPECTION_UNDER_REVIEW: 'inspectionUnderReview', // QC is reviewing
         INSPECTION_APPROVED: 'inspectionApproved',       // QC approved car
-        LIVE_FOR_BIDDING: 'liveForBidding',              // Visible in PD tab
-        BIDDING_ENDED: 'biddingEnded',                  // 24h expired
-        OFFER_ACCEPTED: 'offerAccepted',                // Owner accepted an offer
+        LIVE_FOR_BIDDING: 'liveForBidding',              // Visible in Dealer App PD tab
+        BIDDING_ENDED: 'biddingEnded',                  // 24h passed
+        OFFER_ACCEPTED: 'offerAccepted',                // Owner accepted an offer and scheduled full inspection
+        INSPECTION_REJECTED: 'inspectionRejected',       // QC rejected car
         MOVED_TO_MARKETPLACE: 'movedToMarketplace',     // Owner chose marketplace
-        INSPECTION_UNDER_REVIEW: 'inspectionUnderReview',
-        INSPECTION_REJECTED: 'inspectionRejected',
     },
 
     // Notification Routes

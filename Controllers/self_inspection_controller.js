@@ -45,16 +45,17 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             blacklistStatus,
             pucValidityDate,
             pucNumber,
-            
+
             // Vehicle Condition
             odometer,
             accidentalStatus,
+            transmissionType,
             clutch,
             suspension,
             steering,
             brake,
             ac,
-            
+
             // Additional Details
             expectedDateOfCarHandover,
             expectedPrice,
@@ -65,20 +66,20 @@ exports.submitSelfInspectionRequest = async (req, res) => {
 
         // Get uploaded files from multer
         const files = req.files;
-        
+
         // Check if all required images are present
         const requiredImages = [
             'frontMainImage',
-            'rhsFullImage', 
+            'rhsFullImage',
             'rearMainImage',
             'bootFloorImage',
             'lhsMainImage',
             'engineBayImage',
             'dashboardImage'
         ];
-        
+
         const missingImages = requiredImages.filter(img => !files[img] || files[img].length === 0);
-        
+
         if (missingImages.length > 0) {
             return res.status(400).json({
                 success: false,
@@ -88,25 +89,40 @@ exports.submitSelfInspectionRequest = async (req, res) => {
 
         // Create a unique folder for this inspection
         const timestamp = Date.now();
-        const cloudinaryParentFolder = process.env.CLOUDINARY_PARENT_FOLDER; 
+        const cloudinaryParentFolder = process.env.CLOUDINARY_PARENT_FOLDER;
         const cloudinaryFolder = `${cloudinaryParentFolder}/Self Inspected Cars Images/${registrationNumber}`;
-        
+
         // Helper function to upload image
         const uploadImageField = async (fileArray, fieldName) => {
             if (!fileArray || fileArray.length === 0) {
                 throw new Error(`${fieldName} is required`);
             }
-            
+
             const uploadResult = await uploadSingleImage({
                 file: fileArray[0],
                 folder: cloudinaryFolder,
                 fileId: `${fieldName}_${timestamp}`,
                 compress: true
             });
-            
+
             return uploadResult.url;
         };
-        
+        // Helper function to upload multiple images
+        const uploadMultipleImages = async (fileArray, fieldName) => {
+            if (!fileArray || fileArray.length === 0) return [];
+            const urls = await Promise.all(
+                fileArray.map((file, index) =>
+                    uploadSingleImage({
+                        file,
+                        folder: cloudinaryFolder,
+                        fileId: `${fieldName}_${timestamp}_${index}`,
+                        compress: true
+                    }).then(res => res.url)
+                )
+            );
+            return urls;
+        };
+
         // Upload all 7 required images
         const [
             frontMainImage,
@@ -125,7 +141,11 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             uploadImageField(files.engineBayImage, 'engine_bay'),
             uploadImageField(files.dashboardImage, 'dashboard')
         ]);
-        
+        const additionalImages = await uploadMultipleImages(
+            files.additionalImages,
+            'additional_images'
+        );
+
         // Prepare data for database matching your model exactly
         const inspectionData = {
             // RC Details
@@ -154,7 +174,7 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             blacklistStatus,
             pucValidityDate: pucValidityDate ? new Date(pucValidityDate) : undefined,
             pucNumber,
-            
+
             // Images
             frontMainImage,
             rhsFullImage,
@@ -163,30 +183,32 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             lhsMainImage,
             engineBayImage,
             dashboardImage,
-            
+            additionalImages,
+
             // Vehicle Condition
             odometer: odometer ? parseInt(odometer) : 0,
             accidentalStatus,
+            transmissionType,
             clutch,
             suspension,
             steering,
             brake,
             ac,
-            
+
             // Additional Details
             expectedDateOfCarHandover: expectedDateOfCarHandover ? new Date(expectedDateOfCarHandover) : undefined,
             expectedPrice: expectedPrice ? parseInt(expectedPrice) : 0,
             additionalNotes: additionalNotes || '',
-            
+
             // System Fields
-            userId: userId, 
-            auctionStatus: 'selfInspectionRequested',
+            userId: userId,
+            auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.SELF_INSPECTED,
             sellerContactNumber
         };
-        
+
         // Save to database
         const savedInspection = await SelfInspectedCarsModel.create(inspectionData);
-        
+
         console.log("Self inspection request submitted successfully for:", registrationNumber);
         return res.status(200).json({
             success: true,
@@ -203,15 +225,16 @@ exports.submitSelfInspectionRequest = async (req, res) => {
                     bootFloorImage,
                     lhsMainImage,
                     engineBayImage,
-                    dashboardImage
+                    dashboardImage,
+                    additionalImages
                 },
                 auctionStatus: savedInspection.auctionStatus
             },
         });
-        
+
     } catch (error) {
         console.error("submitSelfInspectionRequest:", error);
-        
+
         // Handle duplicate registration number error
         if (error.code === 11000 && error.keyPattern?.registrationNumber) {
             return res.status(400).json({
@@ -220,7 +243,7 @@ exports.submitSelfInspectionRequest = async (req, res) => {
                 error: 'Duplicate registration number'
             });
         }
-        
+
         return res.status(500).json({
             success: false,
             message: error.message || "Internal Server Error",
@@ -235,7 +258,7 @@ exports.getUserSelfInspectedCarsList = async (req, res) => {
         const userId = req.query.userId;
         const cars = await SelfInspectedCarsModel.find({ userId })
             .sort({ updatedAt: -1 });
-        
+
         return res.status(200).json({
             success: true,
             message: 'User self inspected cars list fetched successfully',
@@ -258,14 +281,14 @@ exports.getSelfInspectedCarById = async (req, res) => {
         const car = await SelfInspectedCarsModel.findOne({
             _id: carId,
         });
-        
+
         if (!car) {
             return res.status(404).json({
                 success: false,
                 message: 'Self inspected car not found'
             });
         }
-        
+
         return res.status(200).json({
             success: true,
             message: 'Self inspected car details fetched successfully',
@@ -288,30 +311,30 @@ exports.getLiveSelfInspectedCarsList = async (req, res) => {
 
         const pageNum = parseInt(page, 10) || 1;
         const limitNum = parseInt(limit, 10) || 30;
-        
-        const [cars, total] = await Promise.all([
-    SelfInspectedCarsModel.find({
-        auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.LIVE_FOR_BIDDING
-    })
-    .lean()
-    .sort({ updatedAt: -1 })
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum),
 
-    SelfInspectedCarsModel.countDocuments({
-        auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.LIVE_FOR_BIDDING
-    })
-]);
-        
+        const [cars, total] = await Promise.all([
+            SelfInspectedCarsModel.find({
+                auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.LIVE_FOR_BIDDING
+            })
+                .lean()
+                .sort({ updatedAt: -1 })
+                .skip((pageNum - 1) * limitNum)
+                .limit(limitNum),
+
+            SelfInspectedCarsModel.countDocuments({
+                auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.LIVE_FOR_BIDDING
+            })
+        ]);
+
         return res.status(200).json({
-    success: true,
-    message: 'Live self inspected cars list fetched successfully',
-    count: cars.length,     // current page count
-    total,                  // total records
-    page: pageNum,
-    totalPages: Math.ceil(total / limitNum),
-    data: cars
-});
+            success: true,
+            message: 'Live self inspected cars list fetched successfully',
+            count: cars.length,     // current page count
+            total,                  // total records
+            page: pageNum,
+            totalPages: Math.ceil(total / limitNum),
+            data: cars
+        });
     } catch (error) {
         console.error("getLiveSelfInspectedCarsList:", error);
         return res.status(500).json({
@@ -327,7 +350,7 @@ exports.makeSelfInspectedCarLive = async (req, res) => {
     try {
         const { carId, auctionEndTime } = req.body;
 
-          if (!carId || !auctionEndTime) {
+        if (!carId || !auctionEndTime) {
             return res.status(400).json({
                 success: false,
                 message: "carId and auctionEndTime are required"
@@ -361,15 +384,15 @@ exports.makeSelfInspectedCarLive = async (req, res) => {
                 message: "Car not found"
             });
         }
-       
+
         // Schedule self inspected car auction after you set auctionStatus to liveForBidding
         const agenda = getAgenda();
         await scheduleSelfInspectedCarAuction(agenda, carId, parsedEndTime);
-        
+
         return res.status(200).json({
             success: true,
             message: 'Auction scheduled for self inspection car',
-            });
+        });
 
     } catch (error) {
         console.error("makeSelfInspectedCarLive:", error);
@@ -385,7 +408,7 @@ exports.makeSelfInspectedCarLive = async (req, res) => {
 exports.makeOfferOnSelfInspectedCar = async (req, res) => {
     try {
         const { carId, userId, offerAmount } = req.body;
- 
+
         if (!carId || !userId || !offerAmount) {
             return res.status(400).json({ error: 'carId, userId and offerAmount are required' });
         }
@@ -435,7 +458,7 @@ exports.makeOfferOnSelfInspectedCar = async (req, res) => {
             fixedMargin: savedOffer.fixedMargin,   // ✅ from plugin
             variableMargin: savedOffer.variableMargin, // ✅ from plugin 
         });
-        
+
         // // Broadcast the new offer to all clients 
         // SocketService.broadcast(EVENTS.SELF_INSPECTED_CAR_OFFER_UPDATED, {
         //     carId: updatedSelfInspectedCar._id.toString(), 
@@ -523,9 +546,9 @@ exports.makeOfferOnSelfInspectedCar = async (req, res) => {
             );
         }
 
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Offer made successfully', 
+        return res.status(200).json({
+            success: true,
+            message: 'Offer made successfully',
             // data: updatedSelfInspectedCar 
         });
 
@@ -554,10 +577,10 @@ exports.getPriceOfferedSelfInspectedCarsList = async (req, res) => {
         // Get unique carIds directly from DB
         const carIds = await SelfInspectedCarOffersModel.distinct('carId', { userId });
 
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Cars fetched successfully', 
-            data: carIds 
+        return res.status(200).json({
+            success: true,
+            message: 'Cars fetched successfully',
+            data: carIds
         });
 
 
@@ -575,7 +598,7 @@ exports.getPriceOfferedSelfInspectedCarsList = async (req, res) => {
 exports.setSelfInspectedCarExpectedPrice = async (req, res) => {
     const { carId, expectedPrice } = req.body;
 
-    
+
     // Validate input
     if (!carId || expectedPrice === undefined || expectedPrice === null) {
         return res.status(400).json({
@@ -670,11 +693,11 @@ exports.setSelfInspectedCarExpectedPrice = async (req, res) => {
 // Accept offer
 exports.acceptSelfInspectedCarOffer = async (req, res) => {
     try {
-        const { 
-            carId, customerContactNumber, inspectionDateTime, 
+        const {
+            carId, customerContactNumber, inspectionDateTime,
             inspectionAddress, city, pinCode, remarks, contactPerson, userId } = req.body;
 
-        if (!carId || !customerContactNumber || !inspectionDateTime || 
+        if (!carId || !customerContactNumber || !inspectionDateTime ||
             !inspectionAddress || !city || !pinCode || !contactPerson || !userId) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
@@ -715,7 +738,7 @@ exports.acceptSelfInspectedCarOffer = async (req, res) => {
                     files: [],
                 },
                 {
-                    status: () => ({ json: () => {} }),
+                    status: () => ({ json: () => { } }),
                 }
             );
         } catch (err) {
@@ -742,10 +765,10 @@ exports.acceptSelfInspectedCarOffer = async (req, res) => {
         // Notify seller that the offer has been accepted for his car
         const sellerId = await getUserIdByPhoneNumber(car.sellerContactNumber);
         if (sellerId) {
-            
+
             const soldAtAmountAfterMarginAdjustment = getDecreasedMarginAmount({
                 amount: car.highestOffer,
-                fixedMargin: car.fixedMargin,  
+                fixedMargin: car.fixedMargin,
                 variableMargin: car.variableMargin,
             });
 
@@ -766,7 +789,7 @@ exports.acceptSelfInspectedCarOffer = async (req, res) => {
 
     } catch (error) {
         console.error('acceptSelfInspectedCarOffer Error:', error);
-         return res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: error.message || "Internal Server Error"
         });
