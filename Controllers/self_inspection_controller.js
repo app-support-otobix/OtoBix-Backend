@@ -49,6 +49,7 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             // Vehicle Condition
             odometer,
             accidentalStatus,
+            transmissionType,
             clutch,
             suspension,
             steering,
@@ -187,6 +188,7 @@ exports.submitSelfInspectionRequest = async (req, res) => {
             // Vehicle Condition
             odometer: odometer ? parseInt(odometer) : 0,
             accidentalStatus,
+            transmissionType,
             clutch,
             suspension,
             steering,
@@ -200,7 +202,7 @@ exports.submitSelfInspectionRequest = async (req, res) => {
 
             // System Fields
             userId: userId,
-            auctionStatus: 'selfInspectionRequested',
+            auctionStatus: CONSTANTS.SELF_INSPECTED_CARS_AUCTION_STATUS.SELF_INSPECTED,
             sellerContactNumber
         };
 

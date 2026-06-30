@@ -47,7 +47,8 @@ const selfInspectedCarsSchema = new mongoose.Schema({
   // ==================== Vehicle Condition (Manual Entry) ====================
   odometer: { type: Number, default: 0 },
   accidentalStatus: { type: String, required: true },
-  clutch: { type: String, required: true },
+  transmissionType: { type: String, required: true },
+  clutch: { type: String, default: '' },
   suspension: { type: String, required: true },
   steering: { type: String, required: true },
   brake: { type: String, required: true },
