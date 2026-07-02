@@ -8,7 +8,7 @@ const selfInspectedCarInspectionIdGeneratePlugin = require('../Plugins/self_insp
 const selfInspectedCarsSchema = new mongoose.Schema({
   // ==================== RC Details (Auto Fetch) ====================
   inspectionId: { type: String, unique: true, trim: true },
-  registrationNumber: { type: String, required: true, unique: true, trim: true, uppercase: true },
+  registrationNumber: { type: String, required: true, trim: true, uppercase: true },
   make: { type: String, trim: true },
   model: { type: String, trim: true },
   variant: { type: String, trim: true },
