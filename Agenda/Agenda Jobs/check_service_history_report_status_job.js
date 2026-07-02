@@ -68,13 +68,16 @@ module.exports = (agenda) => {
 
         const resData = response?.data;
 
+        // Extract CarVaidya's actual inner wrapper
+        const carvaidyaBody = resData?.data;
+
         if (
           response.status === 200 &&
-          resData?.code === "true" &&
-          resData?.data?.length > 0
+          carvaidyaBody?.code === "true" &&
+          carvaidyaBody?.data?.length > 0
         ) {
 
-          const reportData = resData.data[0];
+          const reportData = carvaidyaBody.data[0];
 
           const serviceHistoryStatus = reportData.serviceHistoryStatus;
           const reportURL = reportData.reportURL;
@@ -98,46 +101,46 @@ module.exports = (agenda) => {
             });
 
             // send notification
-          try {
-  await sendPushToExternalId({
-    externalId: userId,
-    title: 'Service History Ready',
-    body: `Service history report for ${make} ${model} (${registrationNumber}) is ready.`,
-    data: { requestId }
-  });
-} catch (pushErr) {
-  console.error(
-    `[SERVICE_HISTORY_JOB] Push notification failed | requestId=${requestId}`,
-    pushErr
-  );
-}
+            try {
+              await sendPushToExternalId({
+                externalId: userId,
+                title: 'Service History Ready',
+                body: `Service history report for ${make} ${model} (${registrationNumber}) is ready.`,
+                data: { requestId }
+              });
+            } catch (pushErr) {
+              console.error(
+                `[SERVICE_HISTORY_JOB] Push notification failed | requestId=${requestId}`,
+                pushErr
+              );
+            }
 
             // process files
             try {
-  const fileProcessResult = await processServiceHistoryReportFiles({
-    reportPageUrl: reportURL,
-    registrationNumber,
-    requestId,
-    make,
-    model,
-    serviceHistoryDocId: reportDocId.toString()
-  });
+              const fileProcessResult = await processServiceHistoryReportFiles({
+                reportPageUrl: reportURL,
+                registrationNumber,
+                requestId,
+                make,
+                model,
+                serviceHistoryDocId: reportDocId.toString()
+              });
 
-  console.log(
-    `[SERVICE_HISTORY_JOB] File processing result | requestId=${requestId} | success=${fileProcessResult?.success} | message=${fileProcessResult?.message}`
-  );
+              console.log(
+                `[SERVICE_HISTORY_JOB] File processing result | requestId=${requestId} | success=${fileProcessResult?.success} | message=${fileProcessResult?.message}`
+              );
 
-  if (!fileProcessResult?.success) {
-    console.error(
-      `[SERVICE_HISTORY_JOB] File processing failed | requestId=${requestId} | errors=${JSON.stringify(fileProcessResult?.errors || [])}`
-    );
-  }
-} catch (fileErr) {
-  console.error(
-    `[SERVICE_HISTORY_JOB] File processing crashed | requestId=${requestId}`,
-    fileErr
-  );
-}
+              if (!fileProcessResult?.success) {
+                console.error(
+                  `[SERVICE_HISTORY_JOB] File processing failed | requestId=${requestId} | errors=${JSON.stringify(fileProcessResult?.errors || [])}`
+                );
+              }
+            } catch (fileErr) {
+              console.error(
+                `[SERVICE_HISTORY_JOB] File processing crashed | requestId=${requestId}`,
+                fileErr
+              );
+            }
 
             return done();
           }
