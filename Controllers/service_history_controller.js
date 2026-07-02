@@ -25,7 +25,7 @@ const carvaidyaSubmitServiceHistoryUrl = process.env.CARVAIDYA_SUBMIT_SERVICE_HI
 
 // ======================= Minimal Helpers =======================
 const sendResponse = (res, status, success, message, data = null) => {
-    res.status(status).json({ success, message, data });
+  res.status(status).json({ success, message, data });
 };
 
 function convertDdMmYyyyToUtcDate(dateStr) {
@@ -41,146 +41,146 @@ function toSentenceCase(value) {
 
 // ======================= Fetch Sample Serice History Pdf =======================
 exports.fetchSampleServiceHistoryPdf = async (req, res) => {
-    try {
-        const pdfUrl = sampleServiceHistoryReportPdfUrl;
-        if (!pdfUrl) {
-        return sendResponse(res, 400, false, "Sample service history PDF URL not available.");
-        }
-        return sendResponse(res, 200, true, "Sample service history PDF URL fetched successfully", { pdfUrl });
-    } catch (error) {
-        console.error('fetchSampleServiceHistoryPdf error:', error);
-        return sendResponse(res, 500, false, "Internal Server Error", { error: error?.message || error });
+  try {
+    const pdfUrl = sampleServiceHistoryReportPdfUrl;
+    if (!pdfUrl) {
+      return sendResponse(res, 400, false, "Sample service history PDF URL not available.");
     }
+    return sendResponse(res, 200, true, "Sample service history PDF URL fetched successfully", { pdfUrl });
+  } catch (error) {
+    console.error('fetchSampleServiceHistoryPdf error:', error);
+    return sendResponse(res, 500, false, "Internal Server Error", { error: error?.message || error });
+  }
 };
 
 
 
 // ======================= Fetch Serice History =======================
 exports.fetchServiceHistory = async (req, res) => {
-    try {
-        const { registrationNumber, userId } = req.query;
+  try {
+    const { registrationNumber, userId } = req.query;
 
-        if (!registrationNumber || !userId) {
-        return sendResponse(res, 500, false, "Registration number and user ID are required.");
-        }
+    if (!registrationNumber || !userId) {
+      return sendResponse(res, 500, false, "Registration number and user ID are required.");
+    }
 
-        // 1) Hit Attestr Api
+    // 1) Hit Attestr Api
     if (!ATTESTR_BASIC_TOKEN) {
-        return sendResponse(res, 500, false, "Attestr API token missing.");
+      return sendResponse(res, 500, false, "Attestr API token missing.");
     }
     const isAllowed = await checkAndConsumeApiHitLimit({
-  userId: userId || '',
-  apiName: 'fetchServiceHistory',
-  limit: 5, // How many times this api can be hit in a day
-});
+      userId: userId || '',
+      apiName: 'fetchServiceHistory',
+      limit: 5, // How many times this api can be hit in a day
+    });
 
-if (!isAllowed) {
-  return sendResponse(res, 400, false, 'Request limit reached. It will reset tomorrow.');
-}
+    if (!isAllowed) {
+      return sendResponse(res, 400, false, 'Request limit reached. It will reset tomorrow.');
+    }
 
     // ✅ Normalize to uppercase (and trim)
     const reg = String(registrationNumber).trim().toUpperCase();
 
-     const { data } = await axios.post(
-                ATTESTR_URL,
-                { reg: reg },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Basic ${ATTESTR_BASIC_TOKEN}`,
-                    },
-                    timeout: 20000,
-                }
-            );
+    const { data } = await axios.post(
+      ATTESTR_URL,
+      { reg: reg },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${ATTESTR_BASIC_TOKEN}`,
+        },
+        timeout: 20000,
+      }
+    );
 
-             // Agar response kabhi wrapped aaye ya direct aaye, dono handle ho jayenge
-        const result = data?.data?.result || data?.result || data;
+    // Agar response kabhi wrapped aaye ya direct aaye, dono handle ho jayenge
+    const result = data?.data?.result || data?.result || data;
 
-        if (result?.valid === false) {
-            return sendResponse(res, 400, false, "Invalid registration number or no data found.", {
-                result: result,
-            });
-        }
-
-        // Sirf required fields nikaal lo
-        const vehicleDetails = {
-            makerDescription: result?.makerDescription || '',
-            makerModel: result?.makerModel || '',
-            fuelType: result?.fuelType || '',
-            bodyType: result?.bodyType || '',
-            registered: result?.registered || '',
-            ownerNumber: result?.ownerNumber || '',
-            chassisNumber: result?.chassisNumber || '',
-            engineNumber: result?.engineNumber || '',
-        };
-
-        // 2) Normalize Make and Model 
-const normalized = await getFinalNormalizedMakeModel({
-  makerDescription: vehicleDetails.makerDescription,
-  makerModel: vehicleDetails.makerModel,
-});
-
-if (!normalized.ok) {
-  return sendResponse(res, 400, false, normalized.message);
-}
-
-const { make, model } = normalized.data;
-
-        // 3) Fetch service history price
-const filter = {
-  make: make.trim(),
-  model: model.trim(),
-};
-
-const carPriceDoc = await CarPricesForPdiModel.findOne(filter).lean();
-
-const serviceHistory = carPriceDoc?.serviceHistory;
-
-if (!serviceHistory) {
-  return sendResponse(
-    res,
-    400,
-    false,
-    "Can not provide service history for this vehicle."
-  );
-}
-// Check if they are not zero or null
-const { rate, gst, total, rounding } = serviceHistory;
-const hasInvalidPrice =
-  [rate, gst, total, rounding].some(
-    (value) => value == null || value === 0
-  );
-if (hasInvalidPrice) {
-  return sendResponse(
-    res,
-    400,
-    false,
-    "Can not provide service history for this vehicle."
-  );
-}
-            const registrationDate = convertDdMmYyyyToUtcDate(vehicleDetails.registered);
-            const ownerSerialNumber = parseInt(vehicleDetails.ownerNumber, 10) || 1;
-            const fuelType = toSentenceCase(vehicleDetails.fuelType);
-            const bodyType = toSentenceCase(vehicleDetails.bodyType);
-            const chassisNumber = vehicleDetails.chassisNumber;
-            const engineNumber = vehicleDetails.engineNumber;
-
-                return sendResponse(res, 200, true, "Service history fetched successfully", {
-                    make,
-                    model,
-                    registrationNumber,
-                    chassisNumber,
-                    engineNumber,
-                    registrationDate,
-                    fuelType,
-                    bodyType,
-                    ownerSerialNumber,
-                    serviceHistory,
-                });
-    } catch (error) {
-        console.error('fetchServiceHistory error:', error);
-        return sendResponse(res, 500, false, "Internal Server Error", { error: error?.message || error });
+    if (result?.valid === false) {
+      return sendResponse(res, 400, false, "Invalid registration number or no data found.", {
+        result: result,
+      });
     }
+
+    // Sirf required fields nikaal lo
+    const vehicleDetails = {
+      makerDescription: result?.makerDescription || '',
+      makerModel: result?.makerModel || '',
+      fuelType: result?.fuelType || '',
+      bodyType: result?.bodyType || '',
+      registered: result?.registered || '',
+      ownerNumber: result?.ownerNumber || '',
+      chassisNumber: result?.chassisNumber || '',
+      engineNumber: result?.engineNumber || '',
+    };
+
+    // 2) Normalize Make and Model 
+    const normalized = await getFinalNormalizedMakeModel({
+      makerDescription: vehicleDetails.makerDescription,
+      makerModel: vehicleDetails.makerModel,
+    });
+
+    if (!normalized.ok) {
+      return sendResponse(res, 400, false, normalized.message);
+    }
+
+    const { make, model } = normalized.data;
+
+    // 3) Fetch service history price
+    const filter = {
+      make: make.trim(),
+      model: model.trim(),
+    };
+
+    const carPriceDoc = await CarPricesForPdiModel.findOne(filter).lean();
+
+    const serviceHistory = carPriceDoc?.serviceHistory;
+
+    if (!serviceHistory) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Can not provide service history for this vehicle."
+      );
+    }
+    // Check if they are not zero or null
+    const { rate, gst, total, rounding } = serviceHistory;
+    const hasInvalidPrice =
+      [rate, gst, total, rounding].some(
+        (value) => value == null || value === 0
+      );
+    if (hasInvalidPrice) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "Can not provide service history for this vehicle."
+      );
+    }
+    const registrationDate = convertDdMmYyyyToUtcDate(vehicleDetails.registered);
+    const ownerSerialNumber = parseInt(vehicleDetails.ownerNumber, 10) || 1;
+    const fuelType = toSentenceCase(vehicleDetails.fuelType);
+    const bodyType = toSentenceCase(vehicleDetails.bodyType);
+    const chassisNumber = vehicleDetails.chassisNumber;
+    const engineNumber = vehicleDetails.engineNumber;
+
+    return sendResponse(res, 200, true, "Service history fetched successfully", {
+      make,
+      model,
+      registrationNumber,
+      chassisNumber,
+      engineNumber,
+      registrationDate,
+      fuelType,
+      bodyType,
+      ownerSerialNumber,
+      serviceHistory,
+    });
+  } catch (error) {
+    console.error('fetchServiceHistory error:', error);
+    return sendResponse(res, 500, false, "Internal Server Error", { error: error?.message || error });
+  }
 };
 
 
@@ -256,29 +256,29 @@ exports.submitServiceHistoryRequest = async (req, res) => {
       !make ||
       !model ||
       rate == null ||
-  total == null
+      total == null
     ) {
       return sendResponse(res, 400, false, "Required parameters are missing.");
     }
 
     // CHECK IF JOB ALREADY EXISTS
-const existingJob = await AgendaJobs.findOne({
-  name: CONSTANTS.AGENDA_JOBS.CHECK_SERVICE_HISTORY_REPORT_STATUS,
-  "data.registrationNumber": registrationNumber,
-  "data.userId": userId,
-  "data.make": make,
-  "data.model": model,
-  disabled: { $ne: true }
-});
+    const existingJob = await AgendaJobs.findOne({
+      name: CONSTANTS.AGENDA_JOBS.CHECK_SERVICE_HISTORY_REPORT_STATUS,
+      "data.registrationNumber": registrationNumber,
+      "data.userId": userId,
+      "data.make": make,
+      "data.model": model,
+      disabled: { $ne: true }
+    });
 
-if (existingJob) {
-  return sendResponse(
-    res,
-    409,
-    false,
-    "Service history request already in progress for this vehicle."
-  );
-}
+    if (existingJob) {
+      return sendResponse(
+        res,
+        409,
+        false,
+        "Service history request already in progress for this vehicle."
+      );
+    }
 
     //  2. CREATE INITIAL LOG DOC 
     const logDoc = await ServiceHistoryReportsModel.create({
@@ -334,14 +334,17 @@ if (existingJob) {
       //  5. VALIDATE CARVAIDYA RESPONSE 
       const responseData = carvaidyaResponse?.data;
 
+      // Extract the nested body data from CarVaidya's custom structure
+      const innerData = responseData?.data;
+
       if (
         carvaidyaResponse.status === 200 &&
-        responseData?.code === "true" &&
-        responseData?.data?.length > 0 &&
-        responseData?.data[0]?.requestID
+        innerData?.code === "true" &&
+        innerData?.data?.length > 0 &&
+        innerData?.data[0]?.requestID
       ) {
 
-        const requestId = responseData.data[0].requestID;
+        const requestId = innerData.data[0].requestID;
 
         //  6. UPDATE DOC SUCCESS 
         const updatedDoc = await ServiceHistoryReportsModel.findByIdAndUpdate(
@@ -355,21 +358,21 @@ if (existingJob) {
         );
 
         // 7. SCHEDULE CHECK SERVICE HISTORY REPORT STATUS JOB
-       try {        
-        const agenda = Agenda.getAgenda();
-       
-  await scheduleCheckServiceHistoryReportStatusJob(agenda, {
-    requestId,
-    licenseNumber: "OBT2F2BE6BD204C4F04B",
-    registrationNumber,
-    make,
-    model,
-    userId,
-    reportDocId: updatedDoc._id.toString()
-  });
-} catch (jobError) {
-  console.error("Failed to schedule service history job:", jobError);
-}
+        try {
+          const agenda = Agenda.getAgenda();
+
+          await scheduleCheckServiceHistoryReportStatusJob(agenda, {
+            requestId,
+            licenseNumber: "OBT2F2BE6BD204C4F04B",
+            registrationNumber,
+            make,
+            model,
+            userId,
+            reportDocId: updatedDoc._id.toString()
+          });
+        } catch (jobError) {
+          console.error("Failed to schedule service history job:", jobError);
+        }
 
         return sendResponse(
           res,

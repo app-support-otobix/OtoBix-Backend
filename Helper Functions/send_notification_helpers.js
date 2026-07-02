@@ -46,6 +46,13 @@ function resolveOneSignalConfigByRole(userRole) {
         };
     }
 
+    if (userRole === CONSTANTS.USER_ROLES.DEALER_AS_SELLER) {
+        return {
+            appId: process.env.ONESIGNAL_SELF_INSPECTION_APP_ID,
+            apiKey: process.env.ONESIGNAL_SELF_INSPECTION_API_KEY,
+        };
+    }
+
     // fallback (default dealer app config)
     return {
         appId: process.env.ONESIGNAL_APP_ID,
@@ -104,12 +111,13 @@ async function sendPushToAllUsers({ title, body, data }) {
         sendPushToAllDealers({ title, body, data }),
         sendPushToAllCustomers({ title, body, data }),
         sendPushToAllInspectionEngineers({ title, body, data }),
+        sendPushToAllSellers({ title, body, data }),
     ]);
 
     // optional: log failures
     results.forEach((r, i) => {
         if (r.status === 'rejected') {
-            console.error(`[OneSignal] Broadcast ${i === 0 ? 'dealers' : i === 1 ? 'customers' : i === 2 ? 'inspection engineers' : 'unknown'} failed:`, r.reason?.message || r.reason);
+            console.error(`[OneSignal] Broadcast ${i === 0 ? 'dealers' : i === 1 ? 'customers' : i === 2 ? 'inspection engineers' : i === 3 ? 'sellers' : 'unknown'} failed:`, r.reason?.message || r.reason);
         }
     });
 
@@ -203,6 +211,34 @@ async function sendPushToAllInspectionEngineers({ title, body, data }) {
     }
 }
 
+// Self Inspection App - Broadcast to all users
+async function sendPushToAllSellers({ title, body, data }) {
+    const envTag = process.env.DEPLOYMENT_ENVIRONMENT;
+
+    const appId = process.env.ONESIGNAL_SELF_INSPECTION_APP_ID;
+    const apiKey = process.env.ONESIGNAL_SELF_INSPECTION_API_KEY;
+    const oneSignal = getOneSignalClient(apiKey);
+
+    const payload = {
+        app_id: appId,
+        filters: [{ field: 'tag', key: 'env', relation: '=', value: envTag }],
+        headings: title ? { en: title } : undefined,
+        contents: { en: body },
+        data,
+        small_icon: 'notificationIcon',
+    };
+
+    try {
+        const { data: resp, status } = await oneSignal.post('/notifications', payload);
+        console.log(`[OneSignal] Broadcast sellers env=${envTag} → ${status}`, { payload, response: resp });
+        return resp;
+    } catch (e) {
+        console.error(`[OneSignal] Broadcast sellers error env=${envTag}:`, { status: e?.response?.status, error: e?.response?.data || e.message, payload });
+        // throw e;
+        return null;
+    }
+}
+
 
 
 module.exports = {
@@ -211,6 +247,7 @@ module.exports = {
     sendPushToAllDealers,
     sendPushToAllCustomers,
     sendPushToAllInspectionEngineers,
+    sendPushToAllSellers,
 };
 
 

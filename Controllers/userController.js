@@ -78,15 +78,18 @@ exports.register = async (req, res) => {
       if (!dealershipName || !entityType || !primaryContactPerson || !primaryContactNumber) {
         return res.status(404).json({ message: 'Missing required Dealer fields.' });
       }
+    } else if (userRole === CONSTANTS.USER_ROLES.DEALER_AS_SELLER) {
+      if (!dealershipName || !entityType || !primaryContactPerson || !primaryContactNumber) {
+        return res.status(404).json({ message: 'Missing required Seller fields.' });
+      }
     } else if (![
       CONSTANTS.USER_ROLES.ADMIN,
       CONSTANTS.USER_ROLES.CUSTOMER,
       CONSTANTS.USER_ROLES.INSPECTION_ENGINEER,
       CONSTANTS.USER_ROLES.SALES_MANAGER,
       CONSTANTS.USER_ROLES.RETAILER,
-      CONSTANTS.USER_ROLES.TELECALLER, 
-      CONSTANTS.USER_ROLES.QC, 
-      CONSTANTS.USER_ROLES.DEALER_AS_SELLER,
+      CONSTANTS.USER_ROLES.TELECALLER,
+      CONSTANTS.USER_ROLES.QC,
     ].includes(userRole)) {
       return res.status(404).json({ message: 'Invalid userRole provided.' });
     }
@@ -458,8 +461,8 @@ exports.getUserProfile = async (req, res) => {
       case CONSTANTS.USER_ROLES.INSPECTION_ENGINEER:
       case CONSTANTS.USER_ROLES.SALES_MANAGER:
       case CONSTANTS.USER_ROLES.RETAILER:
-      case CONSTANTS.USER_ROLES.TELECALLER: 
-      case CONSTANTS.USER_ROLES.QC: 
+      case CONSTANTS.USER_ROLES.TELECALLER:
+      case CONSTANTS.USER_ROLES.QC:
         profile = {
           ...profile,
           addressList: user.addressList,
@@ -727,13 +730,14 @@ exports.createUserThroughAdmin = async (req, res) => {
     }
 
     if (userRole === CONSTANTS.USER_ROLES.DEALER) {
-    if (!dealershipName || !entityType || !primaryContactPerson || !primaryContactNumber ) {
-      return res.status(400).json({ message: 'Please fill all required fields for dealer ( dealershipName, entityType primaryContactPerson primaryContactNumber ).' });
-    }}
+      if (!dealershipName || !entityType || !primaryContactPerson || !primaryContactNumber) {
+        return res.status(400).json({ message: 'Please fill all required fields for dealer ( dealershipName, entityType primaryContactPerson primaryContactNumber ).' });
+      }
+    }
 
     if (!Array.isArray(addressList) || addressList.length === 0) {
-  return res.status(400).json({ message: 'addressList must be a non-empty array.' });
-}
+      return res.status(400).json({ message: 'addressList must be a non-empty array.' });
+    }
 
 
     // If userName already exists in database
